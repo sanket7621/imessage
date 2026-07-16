@@ -1,4 +1,8 @@
 {
+  "type": "module",
+  "scripts": {
+    "dev": "node index.js"
+  },
   "dependencies": {
     "@clerk/express": "^2.1.39",
     "cors": "^2.8.6",

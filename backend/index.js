@@ -1,19 +1,25 @@
-import { configDotenv } from 'dotenv';
-import express from 'express';
+import express from "express";
+import  cors from "cors";
+import "dotenv/config";
+import { clerkMiddleware } from "@clerk/express";
 
-
+import user from "./src/models/user.model.js";
+import { connectDB } from "./src/libs/db.js";
 
 const app = express();
-const port = 3000;
+const PORT = process.env.PORT 
+const frontendurl = process.env.FRONTEND_URL
 
-console.log(process.env.DB_url)
+app.use(express.json());
+app.use(cors({origin:frontendurl, credentials: true}));
+app.use(clerkMiddleware());
 
-
-
-app.get('/', (req, res) => {
-  res.send('Hello World!');
+app.get("/health", (req, res) => {
+  res.status(200).json({ ok: true });
 });
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
+app.listen( PORT , () => {
+
+  connectDB();
+  console.log("server is up and running on port: ", PORT)}  );
+

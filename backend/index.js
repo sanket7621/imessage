@@ -12,8 +12,9 @@ import { connectDB } from "./src/libs/db.js";
 import job from "./src/libs/cron.js";
 
 const app = express();
-const PORT = process.env.PORT 
-const frontendurl = process.env.FRONTEND_URL
+const PORT = process.env.PORT || 3001;
+const frontendurl = process.env.FRONTEND_URL || "http://localhost:5173";
+const publicDir = path.join(process.cwd(), "public");
 
 app.use(express.json());
 app.use(cors({origin:frontendurl, credentials: true}));
@@ -36,7 +37,7 @@ app.listen( PORT , () => {
   connectDB();
   console.log("server is up and running on port: ", PORT)}  );
 
-if (process.env.NODE_env == "production") {
+if (process.env.NODE_ENV === "production") {
   job.start();
 }
   

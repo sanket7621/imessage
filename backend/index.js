@@ -1,13 +1,13 @@
 import express from "express";
-import  cors from "cors";
+import cors from "cors";
 import "dotenv/config";
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 import { clerkMiddleware } from "@clerk/express";
 
-import user from "./src/models/user.model.js";
 import { connectDB } from "./src/libs/db.js";
 import job from "./src/libs/cron.js";
 import clerkWebhook from "./src/webhooks/clerk.webhook.js";
@@ -15,7 +15,12 @@ import clerkWebhook from "./src/webhooks/clerk.webhook.js";
 const app = express();
 const PORT = process.env.PORT || 3001;
 const frontendurl = process.env.FRONTEND_URL || "http://localhost:5173";
-const publicDir = path.join(process.cwd(), "public");
+
+// Get __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// In production, public is at ../public (sibling of dist), locally it's also ../public
+const publicDir = path.join(__dirname, "..", "public");
 
 app.use("/api/webhooks/clerk", express.raw({ type: "application/json" }), clerkWebhook);
 
@@ -35,10 +40,10 @@ app.get("/health", (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-app.listen( PORT , () => {
-
-  connectDB();
-  console.log("server is up and running on port: ", PORT)}  );
+app.listen(PORT, async () => {
+  await connectDB();
+  console.log("server is up and running on port: ", PORT);
+});
 
 if (process.env.NODE_ENV === "production") {
   job.start();

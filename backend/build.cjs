@@ -13,4 +13,7 @@ const srcDir = path.join(rootDir, 'src');
 const outSrcDir = path.join(outDir, 'src');
 fs.cpSync(srcDir, outSrcDir, { recursive: true });
 
+// Copy package.json for reference
+fs.copyFileSync(path.join(rootDir, 'package.json'), path.join(outDir, 'package.json'));
+
 console.log(`Build complete: ${outDir}`);

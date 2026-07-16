@@ -40,6 +40,8 @@ app.get("/health", (req, res) => {
   res.status(200).json({ ok: true });
 });
 
+app.use("/api/auth", authRoutes);
+
 app.listen(PORT, async () => {
   await connectDB();
   console.log("server is up and running on port: ", PORT);

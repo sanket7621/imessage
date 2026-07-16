@@ -11,11 +11,12 @@ import user from "./src/models/user.model.js";
 import { connectDB } from "./src/libs/db.js";
 
 const app = express();
-const PORT = process.env.PORT 
-const frontendurl = process.env.FRONTEND_URL
+const PORT = process.env.PORT || 3001;
+const frontendurl = process.env.FRONTEND_URL || process.env.CLIENT_URL || true;
+const publicDir = path.resolve(process.cwd(), "public");
 
 app.use(express.json());
-app.use(cors({origin:frontendurl, credentials: true}));
+app.use(cors({ origin: frontendurl, credentials: true }));
 app.use(clerkMiddleware());
 
 if (fs.existsSync(publicDir)) {
@@ -30,8 +31,8 @@ app.get("/health", (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-app.listen( PORT , () => {
-
+app.listen(PORT, () => {
   connectDB();
-  console.log("server is up and running on port: ", PORT)}  );
+  console.log("server is up and running on port: ", PORT);
+});
 

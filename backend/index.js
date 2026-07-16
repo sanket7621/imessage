@@ -10,6 +10,7 @@ import { clerkMiddleware } from "@clerk/express";
 import user from "./src/models/user.model.js";
 import { connectDB } from "./src/libs/db.js";
 import job from "./src/libs/cron.js";
+import clerkWebhook from "./src/webhooks/clerk.webhook.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,7 +26,7 @@ app.use(clerkMiddleware());
 if (fs.existsSync(publicDir)) {
   app.use(express.static(publicDir));
 
-  app.get("/{*any}", (req, res, next) => {
+  app.get("/*", (req, res, next) => {
     res.sendFile(path.join(publicDir, "index.html"), (err) => next(err));
   });
 }

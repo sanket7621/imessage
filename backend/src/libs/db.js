@@ -5,7 +5,8 @@ export async function connectDB() {
     const mongoUri = process.env.MONGO_URI;
 
     if (!mongoUri) {
-      throw new Error("MONGO_URI is required");
+      console.warn("MONGO_URI is not set. Database features will be unavailable.");
+      return;
     }
 
     const conn = await mongoose.connect(mongoUri);
@@ -13,7 +14,6 @@ export async function connectDB() {
     console.log("MongoDB connected", conn.connection.host);
   } catch (error) {
     console.error("MongoDB connection error:", error.message);
-    process.exit(1);
-    // 1 means failed, 0 means success
+    console.warn("Continuing without database connection. Some features may not work.");
   }
 }

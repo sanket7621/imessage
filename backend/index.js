@@ -11,6 +11,7 @@ import { clerkMiddleware } from "@clerk/express";
 import { connectDB } from "./src/libs/db.js";
 import job from "./src/libs/cron.js";
 import clerkWebhook from "./src/webhooks/clerk.webhook.js";
+import authRoutes from "./src/routers/auth.route.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;

@@ -10,6 +10,7 @@ import { clerkMiddleware } from "@clerk/express";
 
 import { connectDB } from "./src/libs/db.js";
 import job from "./src/libs/cron.js";
+import { initializeSocket } from "./src/libs/socket.js";
 import clerkWebhook from "./src/webhooks/clerk.webhook.js";
 import authRoutes from "./src/routers/auth.route.js";
 import messageRoutes from "./src/routers/message.routes.js";
@@ -46,10 +47,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/message", messageRoutes);
 
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   await connectDB();
   console.log("server is up and running on port: ", PORT);
 });
+
+initializeSocket(server);
 
 if (process.env.NODE_ENV === "production") {
   job.start();

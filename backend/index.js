@@ -12,6 +12,7 @@ import { connectDB } from "./src/libs/db.js";
 import job from "./src/libs/cron.js";
 import clerkWebhook from "./src/webhooks/clerk.webhook.js";
 import authRoutes from "./src/routers/auth.route.js";
+import messageRoutes from "./src/routers/message.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +43,8 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/message", messageRoutes);
+
 
 app.listen(PORT, async () => {
   await connectDB();

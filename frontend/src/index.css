@@ -54,3 +54,15 @@
     transform: translateX(100%);
   }
 }
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100dvh;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}

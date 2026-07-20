@@ -10,6 +10,11 @@ const noopIo = {
 
 export let io = noopIo;
 
+function broadcastOnlineUsers(socketServer) {
+  const userIds = Array.from(connectedUsers.keys());
+  socketServer.emit("getOnlineUsers", userIds);
+}
+
 export function initializeSocket(server) {
   const socketServer = new Server(server, {
     cors: {
@@ -22,12 +27,14 @@ export function initializeSocket(server) {
     const userId = socket.handshake.query.userId;
 
     if (userId) {
-      connectedUsers.set(userId, socket.id);
+      connectedUsers.set(String(userId), socket.id);
+      broadcastOnlineUsers(socketServer);
     }
 
     socket.on("disconnect", () => {
       if (userId) {
-        connectedUsers.delete(userId);
+        connectedUsers.delete(String(userId));
+        broadcastOnlineUsers(socketServer);
       }
     });
   });
@@ -37,5 +44,5 @@ export function initializeSocket(server) {
 }
 
 export function getReceiverSocketId(receiverId) {
-  return connectedUsers.get(receiverId) || null;
+  return connectedUsers.get(String(receiverId)) || null;
 }

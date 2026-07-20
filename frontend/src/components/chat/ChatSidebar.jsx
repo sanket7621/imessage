@@ -15,12 +15,12 @@ function mapUserForList(user, onlineUsers) {
         name: user.fullName,
         avatarUrl: user.profilePic,
         initials: getInitials(user.fullName),
-        isOnline: onlineUsers.includes(user._id),
+        isOnline: onlineUsers.some((id) => String(id) === String(user._id)),
         peer: {
             name: user.fullName,
             avatarUrl: user.profilePic,
             initials: getInitials(user.fullName),
-            isOnline: onlineUsers.includes(user._id),
+            isOnline: onlineUsers.some((id) => String(id) === String(user._id)),
         },
     };
 }

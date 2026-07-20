@@ -32,14 +32,19 @@ export const useAuthStore = create((set, get) => ({
     },
 
     connectSocket: (user) => {
-        if (!user || get().socket?.connected) return;
+        if (!user) return;
 
-        const socket = io(BASE_URL, { query: { userId: user._id } });
+        const existingSocket = get().socket;
+        if (existingSocket?.connected) return;
+
+        existingSocket?.disconnect();
+
+        const socket = io(BASE_URL, { query: { userId: String(user._id) } });
 
         set({ socket });
 
         socket.on("getOnlineUsers", (userIds) => {
-            set({ onlineUsers: userIds });
+            set({ onlineUsers: Array.isArray(userIds) ? userIds.map(String) : [] });
         });
     },
 

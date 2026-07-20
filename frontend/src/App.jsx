@@ -1,29 +1,18 @@
-import React from 'react'
+import { ThemeProvider } from "./context/ThemeContext";
+import { WallpaperProvider } from "./context/WallpaperContext";
 import "./App.css";
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react'
-
 
 function App() {
   return (
-    
-     <div>
-      <h1> App</h1>
-
-      <header>
-        <SignedOut>
-          <SignInButton />
-          <SignUpButton />
-        </SignedOut>
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
-      </header>
-
-
-     </div>
-    
-    
-  )
+    <ThemeProvider>
+      <WallpaperProvider>
+        <main className="app-shell">
+          <h1>iMessage</h1>
+          <p>Your messaging app is ready to connect.</p>
+        </main>
+      </WallpaperProvider>
+    </ThemeProvider>
+  );
 }
 
-export default App
+export default App;

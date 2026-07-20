@@ -20,6 +20,7 @@ function App() {
     const clearAuth = useAuthStore((state) => state.clearAuth);
     const checkAuth = useAuthStore((state) => state.checkAuth);
     const isCheckingAuth = useAuthStore((state) => state.isCheckingAuth);
+    const authUser = useAuthStore((state) => state.authUser);
 
     useEffect(() => {
         if (!isLoaded) return;
@@ -28,7 +29,7 @@ function App() {
         else clearAuth();
     }, [checkAuth, clearAuth, isLoaded, isSignedIn]);
 
-    if (!isLoaded || (isSignedIn && isCheckingAuth)) return <PageLoader />;
+    if (!isLoaded || (isSignedIn && isCheckingAuth && !authUser)) return <PageLoader />;
 
     return (
         <ThemeProvider>

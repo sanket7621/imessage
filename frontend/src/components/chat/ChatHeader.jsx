@@ -34,7 +34,7 @@ export function ChatHeader() {
 
             {activeConversation ? (
                 <>
-                    <AvatarWithOnlineIndicator isOnline={activeConversation.peer.isOnline ?? true}>
+                    <AvatarWithOnlineIndicator isOnline={activeConversation.peer.isOnline}>
                         <Avatar className="size-9 shrink-0">
                             <Avatar.Image
                                 alt={activeConversation.peer.name}

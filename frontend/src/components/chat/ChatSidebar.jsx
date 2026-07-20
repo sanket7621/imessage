@@ -9,18 +9,19 @@ import { MessageSquareIcon, UsersIcon } from "lucide-react";
 import { ConversationRow } from "./ConversationRow";
 
 function mapUserForList(user, onlineUsers) {
+    const isOnline = onlineUsers.has(String(user._id));
     return {
         conversationId: user._id,
         id: user._id,
         name: user.fullName,
         avatarUrl: user.profilePic,
         initials: getInitials(user.fullName),
-        isOnline: onlineUsers.some((id) => String(id) === String(user._id)),
+        isOnline,
         peer: {
             name: user.fullName,
             avatarUrl: user.profilePic,
             initials: getInitials(user.fullName),
-            isOnline: onlineUsers.some((id) => String(id) === String(user._id)),
+            isOnline,
         },
     };
 }
@@ -28,7 +29,6 @@ function mapUserForList(user, onlineUsers) {
 function ChatSidebar() {
     const conversations = useChatStore((state) => state.conversations);
 
-    console.log(conversations);
     const users = useChatStore((state) => state.users);
 
     const searchQuery = useChatStore((state) => state.searchQuery);

@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 
+/** @type {Map<string, number>} userId -> active socket count (supports multiple tabs) */
 const connectedUsers = new Map();
 
 const noopIo = {
@@ -10,9 +11,26 @@ const noopIo = {
 
 export let io = noopIo;
 
-function broadcastOnlineUsers(socketServer) {
-  const userIds = Array.from(connectedUsers.keys());
-  socketServer.emit("getOnlineUsers", userIds);
+function getOnlineUserIds() {
+  return Array.from(connectedUsers.keys());
+}
+
+function markUserOnline(userId) {
+  const id = String(userId);
+  const nextCount = (connectedUsers.get(id) ?? 0) + 1;
+  connectedUsers.set(id, nextCount);
+  return nextCount === 1;
+}
+
+function markUserOffline(userId) {
+  const id = String(userId);
+  const nextCount = (connectedUsers.get(id) ?? 0) - 1;
+  if (nextCount <= 0) {
+    connectedUsers.delete(id);
+    return true;
+  }
+  connectedUsers.set(id, nextCount);
+  return false;
 }
 
 export function initializeSocket(server) {
@@ -25,16 +43,24 @@ export function initializeSocket(server) {
 
   socketServer.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
+    if (!userId) return;
 
-    if (userId) {
-      connectedUsers.set(String(userId), socket.id);
-      broadcastOnlineUsers(socketServer);
+    const uid = String(userId);
+    socket.join(`user:${uid}`);
+
+    const becameOnline = markUserOnline(uid);
+
+    // Full list only for the connecting client — avoids rebroadcasting to everyone.
+    socket.emit("getOnlineUsers", getOnlineUserIds());
+
+    if (becameOnline) {
+      socket.broadcast.emit("userOnline", uid);
     }
 
     socket.on("disconnect", () => {
-      if (userId) {
-        connectedUsers.delete(String(userId));
-        broadcastOnlineUsers(socketServer);
+      const becameOffline = markUserOffline(uid);
+      if (becameOffline) {
+        socket.broadcast.emit("userOffline", uid);
       }
     });
   });
@@ -43,6 +69,13 @@ export function initializeSocket(server) {
   return io;
 }
 
+export function isUserOnline(userId) {
+  return connectedUsers.has(String(userId));
+}
+
 export function getReceiverSocketId(receiverId) {
-  return connectedUsers.get(String(receiverId)) || null;
+  if (!isUserOnline(receiverId)) return null;
+  const sockets = io.sockets?.adapter?.rooms?.get(`user:${String(receiverId)}`);
+  if (!sockets?.size) return null;
+  return sockets.values().next().value ?? null;
 }

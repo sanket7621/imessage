@@ -21,6 +21,9 @@ const messageSchema = new mongoose.Schema(
     video: {
       type: String,
     },
+    editedAt: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );

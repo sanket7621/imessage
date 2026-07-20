@@ -5,6 +5,18 @@ import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 import toast from "react-hot-toast";
 
+function isMessageInConversation(message, conversationUserId, authUserId) {
+    const partnerId = String(conversationUserId);
+    const senderId = String(message.senderId);
+    const receiverId = String(message.receiverId);
+    const me = String(authUserId);
+
+    return (
+        (senderId === me && receiverId === partnerId) ||
+        (senderId === partnerId && receiverId === me)
+    );
+}
+
 export const useChatStore = create(
     persist(
         (set, get) => ({
@@ -19,6 +31,7 @@ export const useChatStore = create(
             searchQuery: "",
             sidebarTab: "chats",
             composerText: "",
+            editingMessageId: null,
             isSoundEnabled: true,
             isSendingMedia: false,
 
@@ -81,19 +94,97 @@ export const useChatStore = create(
                 }
             },
 
+            updateMessage: async (messageId, text) => {
+                const trimmedText = text.trim();
+                if (!messageId || !trimmedText) return false;
+
+                try {
+                    const res = await axiosInstance.patch(`/message/edit/${messageId}`, { text: trimmedText });
+                    set({
+                        messages: get().messages.map((message) =>
+                            message._id === messageId ? res.data : message,
+                        ),
+                        composerText: "",
+                        editingMessageId: null,
+                    });
+                    get().getConversations();
+                    return true;
+                } catch (error) {
+                    toast.error(error.response?.data?.message || "Failed to update message");
+                    return false;
+                }
+            },
+
+            deleteMessage: async (messageId) => {
+                if (!messageId) return false;
+
+                try {
+                    await axiosInstance.delete(`/message/remove/${messageId}`);
+                    set({
+                        messages: get().messages.filter((message) => message._id !== messageId),
+                        editingMessageId:
+                            get().editingMessageId === messageId ? null : get().editingMessageId,
+                        composerText: get().editingMessageId === messageId ? "" : get().composerText,
+                    });
+                    get().getConversations();
+                    return true;
+                } catch (error) {
+                    toast.error(error.response?.data?.message || "Failed to delete message");
+                    return false;
+                }
+            },
+
+            startEditingMessage: (message) => {
+                if (!message?.text) return;
+                set({ editingMessageId: message.id, composerText: message.text });
+            },
+
+            cancelEditingMessage: () => {
+                set({ editingMessageId: null, composerText: "" });
+            },
+
             subscribeToMessages: (userId) => {
                 if (!userId) return;
 
                 const socket = useAuthStore.getState().socket;
                 if (!socket) return;
 
+                const authUserId = useAuthStore.getState().authUser?._id;
+
                 socket.off("newMessage");
+                socket.off("messageUpdated");
+                socket.off("messageDeleted");
+
                 socket.on("newMessage", (newMessage) => {
-                    // if im not the receiver don't do anything just return
-                    if (String(newMessage.senderId) !== String(userId)) return;
+                    if (!isMessageInConversation(newMessage, userId, authUserId)) return;
+                    if (get().messages.some((message) => message._id === newMessage._id)) return;
 
                     set({ messages: [...get().messages, newMessage] });
+                    get().getConversations();
+                });
 
+                socket.on("messageUpdated", (updatedMessage) => {
+                    if (!isMessageInConversation(updatedMessage, userId, authUserId)) return;
+
+                    set({
+                        messages: get().messages.map((message) =>
+                            message._id === updatedMessage._id ? updatedMessage : message,
+                        ),
+                    });
+                    get().getConversations();
+                });
+
+                socket.on("messageDeleted", ({ _id }) => {
+                    if (!_id) return;
+
+                    const wasInConversation = get().messages.some((message) => message._id === _id);
+                    if (!wasInConversation) return;
+
+                    set({
+                        messages: get().messages.filter((message) => message._id !== _id),
+                        editingMessageId: get().editingMessageId === _id ? null : get().editingMessageId,
+                        composerText: get().editingMessageId === _id ? "" : get().composerText,
+                    });
                     get().getConversations();
                 });
             },
@@ -101,6 +192,8 @@ export const useChatStore = create(
             unsubscribeFromMessages: () => {
                 const socket = useAuthStore.getState().socket;
                 socket?.off("newMessage");
+                socket?.off("messageUpdated");
+                socket?.off("messageDeleted");
             },
 
             setSelectedUser: (selectedUser) => set({ selectedUser }),
@@ -113,6 +206,8 @@ export const useChatStore = create(
                         state.conversations.find((user) => user._id === activeConversationId) ||
                         null,
                     messages: activeConversationId ? state.messages : [],
+                    editingMessageId: null,
+                    composerText: "",
                 }));
             },
 
@@ -124,6 +219,11 @@ export const useChatStore = create(
             sendTextMessage: async (conversationId) => {
                 const messageText = get().composerText.trim();
                 if (!conversationId || !messageText) return false;
+
+                const editingMessageId = get().editingMessageId;
+                if (editingMessageId) {
+                    return get().updateMessage(editingMessageId, messageText);
+                }
 
                 return get().sendMessage({ text: messageText });
             },

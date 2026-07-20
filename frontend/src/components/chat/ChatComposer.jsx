@@ -1,5 +1,5 @@
 import { Button, TextArea } from "@heroui/react";
-import { ImageIcon, LoaderIcon, SendHorizontalIcon } from "lucide-react";
+import { ImageIcon, LoaderIcon, SendHorizontalIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 import useKeyboardSound from "../../hooks/useKeyboardSound";
 import { useChatStore } from "../../store/useChatStore";
@@ -7,14 +7,18 @@ import { useSelectedConversation } from "../../hooks/useSelectedConversation";
 
 export function ChatComposer() {
     const composerText = useChatStore((state) => state.composerText);
+    const editingMessageId = useChatStore((state) => state.editingMessageId);
     const isSoundEnabled = useChatStore((state) => state.isSoundEnabled);
     const sendMediaMessage = useChatStore((state) => state.sendMediaMessage);
     const isSendingMedia = useChatStore((state) => state.isSendingMedia);
     const sendTextMessage = useChatStore((state) => state.sendTextMessage);
     const setComposerText = useChatStore((state) => state.setComposerText);
+    const cancelEditingMessage = useChatStore((state) => state.cancelEditingMessage);
     const { activeConversationId } = useSelectedConversation();
     const { playRandomKeyStrokeSound } = useKeyboardSound();
     const mediaInputRef = useRef(null);
+
+    const isEditing = Boolean(editingMessageId);
 
     const playSoundIfEnabled = () => {
         if (isSoundEnabled) playRandomKeyStrokeSound();
@@ -45,6 +49,21 @@ export function ChatComposer() {
 
     return (
         <footer className="shrink-0 border-t border-border px-1.5 pb-2 pt-2 sm:px-2">
+            {isEditing ? (
+                <div className="mx-auto mb-2 flex max-w-full items-center justify-between gap-2 rounded-xl border border-accent/30 bg-accent-soft px-3 py-2 text-sm">
+                    <span className="truncate font-medium text-accent">Editing message</span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        isIconOnly
+                        className="size-7 shrink-0"
+                        aria-label="Cancel edit"
+                        onPress={cancelEditingMessage}
+                    >
+                        <XIcon className="size-4" strokeWidth={2} />
+                    </Button>
+                </div>
+            ) : null}
             {isSendingMedia ? (
                 <div className="mx-auto mb-2 flex max-w-full items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted">
                     <LoaderIcon
@@ -69,7 +88,7 @@ export function ChatComposer() {
                 <Button
                     variant="ghost"
                     isIconOnly
-                    isDisabled={isSendingMedia}
+                    isDisabled={isSendingMedia || isEditing}
                     className="size-9 shrink-0 touch-manipulation self-end text-accent"
                     onPress={() => mediaInputRef.current?.click()}
                 >
@@ -78,7 +97,7 @@ export function ChatComposer() {
                 <TextArea
                     fullWidth
                     variant="secondary"
-                    placeholder="iMessage"
+                    placeholder={isEditing ? "Edit message" : "iMessage"}
                     rows={1}
                     value={composerText}
                     onChange={handleComposerTextChange}
@@ -93,6 +112,7 @@ export function ChatComposer() {
 
                 <Button variant="primary" isIconOnly isDisabled={!composerText.trim()} onPress={handleSend}>
                     <SendHorizontalIcon className="size-5" />
+                    <span className="sr-only">{isEditing ? "Save edit" : "Send message"}</span>
                 </Button>
             </div>
         </footer>

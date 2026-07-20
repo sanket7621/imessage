@@ -2,12 +2,20 @@ import useScrollToBottom from "../../hooks/useScrollToBottom";
 import { MessageBubble } from "./MessageBubble";
 import { NoConversationPlaceholder } from "./NoConversationPlaceholder";
 import { useSelectedConversation } from "../../hooks/useSelectedConversation";
+import { useChatStore } from "../../store/useChatStore";
 
 export function MessageList() {
     const { activeConversation, activeConversationId } = useSelectedConversation();
+    const startEditingMessage = useChatStore((state) => state.startEditingMessage);
+    const deleteMessage = useChatStore((state) => state.deleteMessage);
 
     const lastMessageId = activeConversation?.messages.at(-1)?.id;
     const messagesScrollRef = useScrollToBottom(activeConversationId, lastMessageId);
+
+    const handleDelete = async (message) => {
+        if (!window.confirm("Delete this message for everyone?")) return;
+        await deleteMessage(message.id);
+    };
 
     return (
         <div className="relative flex flex-1 flex-col overflow-hidden">
@@ -20,7 +28,12 @@ export function MessageList() {
                         Today
                     </p>
                     {activeConversation.messages.map((message) => (
-                        <MessageBubble key={message.id} message={message} />
+                        <MessageBubble
+                            key={message.id}
+                            message={message}
+                            onEdit={startEditingMessage}
+                            onDelete={handleDelete}
+                        />
                     ))}
                 </div>
             ) : (

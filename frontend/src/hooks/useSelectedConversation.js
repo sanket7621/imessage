@@ -23,9 +23,16 @@ function mapUserToConversation({ user, messages, authUser, onlineUsers }) {
         id: message._id,
         role: String(message.senderId) === String(authUser?._id) ? "me" : "them",
         text: message.text || "",
-        time: formatMessageTime(message.createdAt),
+        time: formatMessageTime(message.editedAt || message.createdAt),
         imageUrl: message.image,
         videoUrl: message.video,
+        isEdited: Boolean(message.editedAt),
+        canEdit:
+            String(message.senderId) === String(authUser?._id) &&
+            Boolean(message.text) &&
+            !message.image &&
+            !message.video,
+        canDelete: String(message.senderId) === String(authUser?._id),
     }));
 
     return {

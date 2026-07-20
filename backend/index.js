@@ -17,7 +17,7 @@ import messageRoutes from "./src/routers/message.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const frontendurl = process.env.FRONTEND_URL || "http://localhost:5173";
+const frontendurl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
 
 // Get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -31,20 +31,20 @@ app.use(express.json());
 app.use(cors({origin:frontendurl, credentials: true}));
 app.use(clerkMiddleware());
 
-if (fs.existsSync(publicDir)) {
-  app.use(express.static(publicDir));
-
-  app.get(/.*/,  (req, res, next) => {
-    res.sendFile(path.join(publicDir, "index.html"), (err) => next(err));
-  });
-}
-
 app.get("/health", (req, res) => {
   res.status(200).json({ ok: true });
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/message", messageRoutes);
+
+if (fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+
+  app.get(/.*/, (req, res, next) => {
+    res.sendFile(path.join(publicDir, "index.html"), (err) => next(err));
+  });
+}
 
 
 const server = app.listen(PORT, async () => {

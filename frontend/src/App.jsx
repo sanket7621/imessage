@@ -1,39 +1,49 @@
-import { useAuth } from "@clerk/clerk-react";
-import { Navigate, Route, Routes } from "react-router";
-import { ThemeProvider } from "./context/ThemeContext";
 import { WallpaperProvider } from "./context/WallpaperContext";
-import AuthPage from "./pages/AuthPage";
+import { ThemeProvider } from "./context/ThemeContext";
+import { Navigate, Route, Routes } from "react-router";
 import ChatPage from "./pages/ChatPage";
-import "./App.css";
+import AuthPage from "./pages/AuthPage";
+import { useAuth } from "@clerk/clerk-react";
+import PageLoader from "./components/PageLoader";
+import { useAuthStore } from "./store/useAuthStore";
+import { useEffect } from "react";
 
-function AppRoutes() {
-  const { isLoaded, isSignedIn } = useAuth();
-
-  if (!isLoaded) {
-    return (
-      <main className="flex min-h-dvh items-center justify-center bg-background text-foreground">
-        Loading…
-      </main>
-    );
-  }
-
-  return (
-    <Routes>
-      <Route path="/" element={isSignedIn ? <ChatPage /> : <Navigate to="/auth" replace />} />
-      <Route path="/auth" element={isSignedIn ? <Navigate to="/" replace /> : <AuthPage />} />
-      <Route path="*" element={<Navigate to={isSignedIn ? "/" : "/auth"} replace />} />
-    </Routes>
-  );
-}
+import { Toaster } from "react-hot-toast";
 
 function App() {
-  return (
-    <ThemeProvider>
-      <WallpaperProvider>
-        <AppRoutes />
-      </WallpaperProvider>
-    </ThemeProvider>
-  );
+    const { isSignedIn, isLoaded } = useAuth();
+
+    // option 1
+    // const { checkAuth, isCheckingAuth, clearAuth } = useAuthStore();
+
+    // option 2 - better for performance
+    const clearAuth = useAuthStore((state) => state.clearAuth);
+    const checkAuth = useAuthStore((state) => state.checkAuth);
+    const isCheckingAuth = useAuthStore((state) => state.isCheckingAuth);
+
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        if (isSignedIn) checkAuth();
+        else clearAuth();
+    }, [checkAuth, clearAuth, isLoaded, isSignedIn]);
+
+    if (!isLoaded || (isSignedIn && isCheckingAuth)) return <PageLoader />;
+
+    return (
+        <ThemeProvider>
+            <WallpaperProvider>
+                <Routes>
+                    <Route path="/" element={isSignedIn ? <ChatPage /> : <Navigate to={"/auth"} replace />} />
+                    <Route
+                        path="/auth"
+                        element={!isSignedIn ? <AuthPage /> : <Navigate to={"/"} replace />}
+                    />
+                </Routes>
+                <Toaster />
+            </WallpaperProvider>
+        </ThemeProvider>
+    );
 }
 
 export default App;

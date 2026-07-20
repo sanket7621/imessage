@@ -13,7 +13,7 @@ export let io = noopIo;
 export function initializeSocket(server) {
   const socketServer = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || "http://localhost:5173",
+      origin: (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, ""),
       credentials: true,
     },
   });

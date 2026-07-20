@@ -1,14 +1,10 @@
-import React from 'react'
 import "./App.css";
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react'
-
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/clerk-react";
 
 function App() {
-
   return (
-    
-     <div>
-      <h1> App</h1>
+    <div>
+      <h1>App</h1>
 
       <header>
         <SignedOut>
@@ -19,12 +15,8 @@ function App() {
           <UserButton />
         </SignedIn>
       </header>
-
-
-     </div>
-    
-    
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;

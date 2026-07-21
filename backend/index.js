@@ -13,6 +13,7 @@ import job from "./src/libs/cron.js";
 import { initializeSocket } from "./src/libs/socket.js";
 import clerkWebhook from "./src/webhooks/clerk.webhook.js";
 import authRoutes from "./src/routers/auth.route.js";
+import callRoutes from "./src/routers/call.routes.js";
 import messageRoutes from "./src/routers/message.routes.js";
 
 const app = express();
@@ -36,6 +37,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/call", callRoutes);
 app.use("/api/message", messageRoutes);
 
 if (fs.existsSync(publicDir)) {

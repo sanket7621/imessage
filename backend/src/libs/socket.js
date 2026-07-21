@@ -1,5 +1,15 @@
 import { Server } from "socket.io";
 
+import {
+  createCall,
+  endCall,
+  endCallForUser,
+  getCall,
+  getCallPeer,
+  isCallParticipant,
+  isUserInCall,
+  markCallActive,
+} from "./callState.js";
 import User from "../models/user.model.js";
 
 /** @type {Map<string, number>} userId -> active socket count (supports multiple tabs) */
@@ -35,6 +45,26 @@ function markUserOffline(userId) {
   return false;
 }
 
+function emitToCall(callId, event, payload, excludeUserId = null) {
+  const call = getCall(callId);
+  if (!call) return;
+
+  const participants = [call.callerId, call.calleeId];
+  for (const participantId of participants) {
+    if (excludeUserId && String(participantId) === String(excludeUserId)) continue;
+    io.to(`user:${participantId}`).emit(event, payload);
+  }
+}
+
+function terminateCall(callId, endedByUserId, reason = "ended") {
+  const call = endCall(callId);
+  if (!call) return;
+
+  const payload = { callId: String(callId), endedBy: String(endedByUserId), reason };
+  io.to(`user:${call.callerId}`).emit("call:ended", payload);
+  io.to(`user:${call.calleeId}`).emit("call:ended", payload);
+}
+
 export function initializeSocket(server) {
   const socketServer = new Server(server, {
     cors: {
@@ -52,7 +82,6 @@ export function initializeSocket(server) {
 
     const becameOnline = markUserOnline(uid);
 
-    // Full list only for the connecting client — avoids rebroadcasting to everyone.
     socket.emit("getOnlineUsers", getOnlineUserIds());
 
     if (becameOnline) {
@@ -69,7 +98,119 @@ export function initializeSocket(server) {
       socket.to(`user:${String(receiverId)}`).emit("userStoppedTyping", { userId: uid });
     });
 
+    socket.on("call:initiate", async ({ callId, calleeId }) => {
+      if (!callId || !calleeId) {
+        socket.emit("call:error", { callId, message: "Invalid call request" });
+        return;
+      }
+
+      if (String(calleeId) === uid) {
+        socket.emit("call:error", { callId, message: "Cannot call yourself" });
+        return;
+      }
+
+      if (isUserInCall(uid) || isUserInCall(calleeId)) {
+        socket.emit("call:error", { callId, message: "User is busy" });
+        return;
+      }
+
+      if (!connectedUsers.has(String(calleeId))) {
+        socket.emit("call:error", { callId, message: "User is offline" });
+        return;
+      }
+
+      const caller = await User.findById(uid).select("fullName profilePic");
+      if (!caller) {
+        socket.emit("call:error", { callId, message: "Caller not found" });
+        return;
+      }
+
+      createCall(callId, uid, calleeId);
+
+      socket.emit("call:initiated", { callId: String(callId), calleeId: String(calleeId) });
+
+      io.to(`user:${String(calleeId)}`).emit("call:incoming", {
+        callId: String(callId),
+        caller: {
+          userId: uid,
+          fullName: caller.fullName,
+          profilePic: caller.profilePic,
+        },
+      });
+    });
+
+    socket.on("call:accept", ({ callId }) => {
+      const call = getCall(callId);
+      if (!call || call.calleeId !== uid || call.status !== "ringing") {
+        socket.emit("call:error", { callId, message: "Call is no longer available" });
+        return;
+      }
+
+      markCallActive(callId);
+      emitToCall(callId, "call:accepted", { callId: String(callId) });
+    });
+
+    socket.on("call:reject", ({ callId }) => {
+      const call = getCall(callId);
+      if (!call || !isCallParticipant(call, uid)) return;
+      terminateCall(callId, uid, "rejected");
+    });
+
+    socket.on("call:cancel", ({ callId }) => {
+      const call = getCall(callId);
+      if (!call || call.callerId !== uid || call.status !== "ringing") return;
+      terminateCall(callId, uid, "cancelled");
+    });
+
+    socket.on("call:end", ({ callId }) => {
+      const call = getCall(callId);
+      if (!call || !isCallParticipant(call, uid)) return;
+      terminateCall(callId, uid, "ended");
+    });
+
+    socket.on("webrtc:offer", ({ callId, sdp }) => {
+      const call = getCall(callId);
+      if (!call || !isCallParticipant(call, uid) || !sdp) return;
+
+      const peerId = getCallPeer(call, uid);
+      io.to(`user:${peerId}`).emit("webrtc:offer", { callId: String(callId), sdp, from: uid });
+    });
+
+    socket.on("webrtc:answer", ({ callId, sdp }) => {
+      const call = getCall(callId);
+      if (!call || !isCallParticipant(call, uid) || !sdp) return;
+
+      const peerId = getCallPeer(call, uid);
+      io.to(`user:${peerId}`).emit("webrtc:answer", { callId: String(callId), sdp, from: uid });
+    });
+
+    socket.on("webrtc:ice-candidate", ({ callId, candidate }) => {
+      const call = getCall(callId);
+      if (!call || !isCallParticipant(call, uid) || !candidate) return;
+
+      const peerId = getCallPeer(call, uid);
+      io.to(`user:${peerId}`).emit("webrtc:ice-candidate", {
+        callId: String(callId),
+        candidate,
+        from: uid,
+      });
+    });
+
     socket.on("disconnect", () => {
+      const ended = endCallForUser(uid);
+      if (ended) {
+        io.to(`user:${ended.call.callerId}`).emit("call:ended", {
+          callId: ended.callId,
+          endedBy: uid,
+          reason: "disconnected",
+        });
+        io.to(`user:${ended.call.calleeId}`).emit("call:ended", {
+          callId: ended.callId,
+          endedBy: uid,
+          reason: "disconnected",
+        });
+      }
+
       const becameOffline = markUserOffline(uid);
       if (becameOffline) {
         const lastSeenAt = new Date();

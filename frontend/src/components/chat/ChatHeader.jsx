@@ -1,15 +1,17 @@
 import { Avatar, Button } from "@heroui/react";
-import { ChevronLeftIcon, Volume2Icon, VolumeXIcon, XIcon } from "lucide-react";
+import { ChevronLeftIcon, PhoneIcon, Volume2Icon, VolumeXIcon, XIcon } from "lucide-react";
 import { AppLogo } from "../AppLogo";
 import { AvatarWithOnlineIndicator } from "./AvatarWithOnlineIndicator";
 
 import { formatLastSeen } from "../../lib/utils";
+import { initiateCall } from "../../lib/callService";
 import { ThemePresetPicker } from "../ThemePresetPicker";
 
 import { ThemeToggle } from "../ThemeToggle";
 import { WallpaperPicker } from "../WallpaperPicker";
 
 import { useChatStore } from "../../store/useChatStore";
+import { useCallStore } from "../../store/useCallStore";
 import { useSelectedConversation } from "../../hooks/useSelectedConversation";
 
 export function ChatHeader() {
@@ -18,6 +20,20 @@ export function ChatHeader() {
     const setSoundEnabled = useChatStore((state) => state.setSoundEnabled);
 
     const { activeConversation, isLargeScreen } = useSelectedConversation();
+    const callStatus = useCallStore((state) => state.status);
+    const isCallBusy = callStatus !== "idle" && callStatus !== "ended";
+
+    const handleVoiceCall = () => {
+        if (!activeConversation || isCallBusy) return;
+
+        initiateCall({
+            id: activeConversation.id,
+            name: activeConversation.peer.name,
+            avatarUrl: activeConversation.peer.avatarUrl,
+            initials: activeConversation.peer.initials,
+            isOnline: activeConversation.peer.isOnline,
+        });
+    };
 
     return (
         <header className="sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-1.5 py-1.5 sm:gap-2 sm:px-2 sm:py-2">
@@ -47,7 +63,7 @@ export function ChatHeader() {
                         </Avatar>
                     </AvatarWithOnlineIndicator>
 
-                    <div className="flex-1 text-center sm:text-left">
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
                         <p className="truncate text-[15px] font-semibold leading-tight">
                             {activeConversation.peer.name}
                         </p>
@@ -61,6 +77,18 @@ export function ChatHeader() {
                             )}
                         </p>
                     </div>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        isIconOnly
+                        className="size-9 shrink-0 text-[#25D366] hover:bg-[#25D366]/10"
+                        aria-label="Voice call"
+                        isDisabled={!activeConversation.peer.isOnline || isCallBusy}
+                        onPress={handleVoiceCall}
+                    >
+                        <PhoneIcon className="size-5" strokeWidth={2.25} aria-hidden />
+                    </Button>
                 </>
             ) : (
                 <div className="flex flex-1 items-center gap-2.5 sm:text-left">

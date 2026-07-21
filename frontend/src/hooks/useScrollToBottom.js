@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
  * Scrolls a container to the bottom when `threadKey` or `lastItemId` changes
  * (e.g. new message or switched conversation). Returns a ref for the scrollable element.
  */
-function useScrollToBottom(threadKey, lastItemId) {
+function useScrollToBottom(threadKey, lastItemId, isPeerTyping = false) {
     const scrollRef = useRef(null);
 
     useEffect(() => {
@@ -16,7 +16,7 @@ function useScrollToBottom(threadKey, lastItemId) {
         };
         scrollToBottom();
         requestAnimationFrame(scrollToBottom);
-    }, [threadKey, lastItemId]);
+    }, [threadKey, lastItemId, isPeerTyping]);
 
     return scrollRef;
 }

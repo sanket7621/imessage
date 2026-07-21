@@ -17,6 +17,29 @@ function isMessageInConversation(message, conversationUserId, authUserId) {
     );
 }
 
+/** @type {Map<string, ReturnType<typeof setTimeout>>} */
+const typingExpiryTimers = new Map();
+
+function clearTypingExpiry(userId) {
+    const timer = typingExpiryTimers.get(String(userId));
+    if (timer) {
+        clearTimeout(timer);
+        typingExpiryTimers.delete(String(userId));
+    }
+}
+
+function scheduleTypingExpiry(userId, onExpire) {
+    const id = String(userId);
+    clearTypingExpiry(id);
+    typingExpiryTimers.set(
+        id,
+        setTimeout(() => {
+            typingExpiryTimers.delete(id);
+            onExpire(id);
+        }, 3000),
+    );
+}
+
 export const useChatStore = create(
     persist(
         (set, get) => ({
@@ -34,12 +57,14 @@ export const useChatStore = create(
             editingMessageId: null,
             isSoundEnabled: true,
             isSendingMedia: false,
+            typingByUserId: {},
 
             getUsers: async () => {
                 set({ isUsersLoading: true });
                 try {
                     const res = await axiosInstance.get("/message/users");
                     const users = Array.isArray(res.data) ? res.data : [];
+                    useAuthStore.getState().seedLastSeenFromUsers(users);
                     set((state) => ({
                         users,
                         selectedUser:
@@ -58,7 +83,9 @@ export const useChatStore = create(
                 set({ isConversationsLoading: true });
                 try {
                     const res = await axiosInstance.get("/message/conversations");
-                    set({ conversations: Array.isArray(res.data) ? res.data : [] });
+                    const conversations = Array.isArray(res.data) ? res.data : [];
+                    useAuthStore.getState().seedLastSeenFromUsers(conversations);
+                    set({ conversations });
                 } catch (error) {
                     console.log("Error in getConversations", error.message);
                 } finally {
@@ -85,6 +112,7 @@ export const useChatStore = create(
 
                 try {
                     const res = await axiosInstance.post(`/message/send/${selectedUser._id}`, messageData);
+                    get().stopTyping(selectedUser._id);
                     set({ messages: [...messages, res.data], composerText: "" });
                     get().getConversations();
                     return true;
@@ -154,6 +182,8 @@ export const useChatStore = create(
                 socket.off("newMessage");
                 socket.off("messageUpdated");
                 socket.off("messageDeleted");
+                socket.off("userTyping");
+                socket.off("userStoppedTyping");
 
                 socket.on("newMessage", (newMessage) => {
                     if (!isMessageInConversation(newMessage, userId, authUserId)) return;
@@ -187,6 +217,34 @@ export const useChatStore = create(
                     });
                     get().getConversations();
                 });
+
+                socket.on("userTyping", ({ userId: typingUserId }) => {
+                    if (String(typingUserId) !== String(userId)) return;
+
+                    set((state) => ({
+                        typingByUserId: { ...state.typingByUserId, [String(typingUserId)]: true },
+                    }));
+
+                    scheduleTypingExpiry(typingUserId, (expiredUserId) => {
+                        set((state) => {
+                            if (!state.typingByUserId[expiredUserId]) return state;
+                            const next = { ...state.typingByUserId };
+                            delete next[expiredUserId];
+                            return { typingByUserId: next };
+                        });
+                    });
+                });
+
+                socket.on("userStoppedTyping", ({ userId: typingUserId }) => {
+                    if (String(typingUserId) !== String(userId)) return;
+
+                    clearTypingExpiry(typingUserId);
+                    set((state) => {
+                        const next = { ...state.typingByUserId };
+                        delete next[String(typingUserId)];
+                        return { typingByUserId: next };
+                    });
+                });
             },
 
             unsubscribeFromMessages: () => {
@@ -194,11 +252,33 @@ export const useChatStore = create(
                 socket?.off("newMessage");
                 socket?.off("messageUpdated");
                 socket?.off("messageDeleted");
+                socket?.off("userTyping");
+                socket?.off("userStoppedTyping");
+                typingExpiryTimers.forEach((timer) => clearTimeout(timer));
+                typingExpiryTimers.clear();
+                set({ typingByUserId: {} });
+            },
+
+            emitTyping: (receiverId) => {
+                const socket = useAuthStore.getState().socket;
+                if (!socket || !receiverId) return;
+                socket.emit("typing", { receiverId });
+            },
+
+            stopTyping: (receiverId) => {
+                const socket = useAuthStore.getState().socket;
+                if (!socket || !receiverId) return;
+                socket.emit("stopTyping", { receiverId });
             },
 
             setSelectedUser: (selectedUser) => set({ selectedUser }),
 
             setActiveConversationId: (activeConversationId) => {
+                const previousId = get().activeConversationId;
+                if (previousId && previousId !== activeConversationId) {
+                    get().stopTyping(previousId);
+                }
+
                 set((state) => ({
                     activeConversationId,
                     selectedUser:
@@ -208,6 +288,7 @@ export const useChatStore = create(
                     messages: activeConversationId ? state.messages : [],
                     editingMessageId: null,
                     composerText: "",
+                    typingByUserId: {},
                 }));
             },
 

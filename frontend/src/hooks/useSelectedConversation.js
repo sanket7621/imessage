@@ -18,7 +18,8 @@ export function getInitials(name) {
 // 1. Messages → UI messages
 // 2. User → peer
 
-function mapUserToConversation({ user, messages, authUser, onlineUsers }) {
+function mapUserToConversation({ user, messages, authUser, onlineUsers, lastSeenByUser, typingByUserId }) {
+    const userId = String(user._id);
     const mappedMessages = messages.map((message) => ({
         id: message._id,
         role: String(message.senderId) === String(authUser?._id) ? "me" : "them",
@@ -40,7 +41,9 @@ function mapUserToConversation({ user, messages, authUser, onlineUsers }) {
         peer: {
             name: user.fullName,
             subtitle: user.email,
-            isOnline: onlineUsers.has(String(user._id)),
+            isOnline: onlineUsers.has(userId),
+            isTyping: Boolean(typingByUserId[userId]) && onlineUsers.has(userId),
+            lastSeenAt: lastSeenByUser[userId] ?? user.lastSeenAt ?? null,
             avatarUrl: user.profilePic,
             initials: getInitials(user.fullName),
         },
@@ -56,6 +59,8 @@ export function useSelectedConversation() {
 
     const authUser = useAuthStore((state) => state.authUser);
     const onlineUsers = useAuthStore((state) => state.onlineUsers);
+    const lastSeenByUser = useAuthStore((state) => state.lastSeenByUser);
+    const typingByUserId = useChatStore((state) => state.typingByUserId);
 
     const isLargeScreen = useMediaQuery("(min-width: 1024px)");
 
@@ -65,7 +70,14 @@ export function useSelectedConversation() {
         : null;
 
     const activeConversation = selectedUser
-        ? mapUserToConversation({ user: selectedUser, messages, authUser, onlineUsers })
+        ? mapUserToConversation({
+              user: selectedUser,
+              messages,
+              authUser,
+              onlineUsers,
+              lastSeenByUser,
+              typingByUserId,
+          })
         : null;
 
     return {

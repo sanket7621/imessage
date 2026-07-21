@@ -3,6 +3,7 @@ import { ChevronLeftIcon, Volume2Icon, VolumeXIcon, XIcon } from "lucide-react";
 import { AppLogo } from "../AppLogo";
 import { AvatarWithOnlineIndicator } from "./AvatarWithOnlineIndicator";
 
+import { formatLastSeen } from "../../lib/utils";
 import { ThemePresetPicker } from "../ThemePresetPicker";
 
 import { ThemeToggle } from "../ThemeToggle";
@@ -51,10 +52,12 @@ export function ChatHeader() {
                             {activeConversation.peer.name}
                         </p>
                         <p className="truncate text-xs text-muted">
-                            {activeConversation.peer.isOnline ? (
+                            {activeConversation.peer.isTyping ? (
+                                <span className="font-medium text-accent">typing...</span>
+                            ) : activeConversation.peer.isOnline ? (
                                 <span className="font-medium text-success">Online</span>
                             ) : (
-                                "Offline"
+                                formatLastSeen(activeConversation.peer.lastSeenAt)
                             )}
                         </p>
                     </div>

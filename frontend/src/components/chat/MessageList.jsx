@@ -1,6 +1,7 @@
 import useScrollToBottom from "../../hooks/useScrollToBottom";
 import { MessageBubble } from "./MessageBubble";
 import { NoConversationPlaceholder } from "./NoConversationPlaceholder";
+import { TypingIndicator } from "./TypingIndicator";
 import { useSelectedConversation } from "../../hooks/useSelectedConversation";
 import { useChatStore } from "../../store/useChatStore";
 
@@ -10,7 +11,8 @@ export function MessageList() {
     const deleteMessage = useChatStore((state) => state.deleteMessage);
 
     const lastMessageId = activeConversation?.messages.at(-1)?.id;
-    const messagesScrollRef = useScrollToBottom(activeConversationId, lastMessageId);
+    const isPeerTyping = activeConversation?.peer.isTyping;
+    const messagesScrollRef = useScrollToBottom(activeConversationId, lastMessageId, isPeerTyping);
 
     const handleDelete = async (message) => {
         if (!window.confirm("Delete this message for everyone?")) return;
@@ -35,6 +37,7 @@ export function MessageList() {
                             onDelete={handleDelete}
                         />
                     ))}
+                    {isPeerTyping ? <TypingIndicator /> : null}
                 </div>
             ) : (
                 <NoConversationPlaceholder />

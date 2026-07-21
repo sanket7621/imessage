@@ -1,6 +1,6 @@
 import { Button, TextArea } from "@heroui/react";
 import { ImageIcon, LoaderIcon, SendHorizontalIcon, XIcon } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import useKeyboardSound from "../../hooks/useKeyboardSound";
 import { useChatStore } from "../../store/useChatStore";
 import { useSelectedConversation } from "../../hooks/useSelectedConversation";
@@ -14,24 +14,69 @@ export function ChatComposer() {
     const sendTextMessage = useChatStore((state) => state.sendTextMessage);
     const setComposerText = useChatStore((state) => state.setComposerText);
     const cancelEditingMessage = useChatStore((state) => state.cancelEditingMessage);
+    const emitTyping = useChatStore((state) => state.emitTyping);
+    const stopTyping = useChatStore((state) => state.stopTyping);
     const { activeConversationId } = useSelectedConversation();
     const { playRandomKeyStrokeSound } = useKeyboardSound();
     const mediaInputRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
+    const isTypingRef = useRef(false);
 
     const isEditing = Boolean(editingMessageId);
+
+    const clearTypingTimeout = () => {
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
+    };
+
+    const endTyping = () => {
+        clearTypingTimeout();
+        if (!isTypingRef.current || !activeConversationId) return;
+        isTypingRef.current = false;
+        stopTyping(activeConversationId);
+    };
+
+    useEffect(() => {
+        return () => {
+            clearTypingTimeout();
+            if (isTypingRef.current && activeConversationId) {
+                stopTyping(activeConversationId);
+                isTypingRef.current = false;
+            }
+        };
+    }, [activeConversationId, stopTyping]);
 
     const playSoundIfEnabled = () => {
         if (isSoundEnabled) playRandomKeyStrokeSound();
     };
 
     const handleSend = async () => {
+        endTyping();
         const didSendMessage = await sendTextMessage(activeConversationId);
         if (didSendMessage) playSoundIfEnabled();
     };
 
     const handleComposerTextChange = (event) => {
-        setComposerText(event.target.value);
+        const nextText = event.target.value;
+        setComposerText(nextText);
         playSoundIfEnabled();
+
+        if (!activeConversationId || isEditing) return;
+
+        if (!nextText.trim()) {
+            endTyping();
+            return;
+        }
+
+        if (!isTypingRef.current) {
+            isTypingRef.current = true;
+            emitTyping(activeConversationId);
+        }
+
+        clearTypingTimeout();
+        typingTimeoutRef.current = setTimeout(endTyping, 2000);
     };
 
     const handleMediaPick = async (event) => {

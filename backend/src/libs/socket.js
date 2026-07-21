@@ -1,5 +1,7 @@
 import { Server } from "socket.io";
 
+import User from "../models/user.model.js";
+
 /** @type {Map<string, number>} userId -> active socket count (supports multiple tabs) */
 const connectedUsers = new Map();
 
@@ -57,9 +59,24 @@ export function initializeSocket(server) {
       socket.broadcast.emit("userOnline", uid);
     }
 
+    socket.on("typing", ({ receiverId }) => {
+      if (!receiverId) return;
+      socket.to(`user:${String(receiverId)}`).emit("userTyping", { userId: uid });
+    });
+
+    socket.on("stopTyping", ({ receiverId }) => {
+      if (!receiverId) return;
+      socket.to(`user:${String(receiverId)}`).emit("userStoppedTyping", { userId: uid });
+    });
+
     socket.on("disconnect", () => {
       const becameOffline = markUserOffline(uid);
       if (becameOffline) {
+        const lastSeenAt = new Date();
+        User.findByIdAndUpdate(uid, { lastSeenAt }).catch((error) => {
+          console.error("[socket] failed to update lastSeenAt:", error?.message ?? error);
+        });
+        socket.broadcast.emit("userLastSeen", { userId: uid, lastSeenAt: lastSeenAt.toISOString() });
         socket.broadcast.emit("userOffline", uid);
       }
     });

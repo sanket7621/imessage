@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    lastSeenAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }, // createdAt & updatedAt
 );

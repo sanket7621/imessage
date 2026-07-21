@@ -8,10 +8,21 @@ function toOnlineSet(userIds) {
     return new Set(Array.isArray(userIds) ? userIds.map(String) : []);
 }
 
+function seedLastSeenFromUsers(users, existing = {}) {
+    const next = { ...existing };
+    for (const user of users) {
+        if (user?.lastSeenAt) {
+            next[String(user._id)] = user.lastSeenAt;
+        }
+    }
+    return next;
+}
+
 export const useAuthStore = create((set, get) => ({
     authUser: null,
     isCheckingAuth: true,
     onlineUsers: new Set(),
+    lastSeenByUser: {},
     socket: null,
 
     checkAuth: async () => {
@@ -32,7 +43,7 @@ export const useAuthStore = create((set, get) => ({
     },
 
     clearAuth: () => {
-        set({ authUser: null, isCheckingAuth: false, onlineUsers: new Set() });
+        set({ authUser: null, isCheckingAuth: false, onlineUsers: new Set(), lastSeenByUser: {} });
         get().disconnectSocket();
     },
 
@@ -77,13 +88,29 @@ export const useAuthStore = create((set, get) => ({
             });
         });
 
+        socket.on("userLastSeen", ({ userId, lastSeenAt }) => {
+            if (!userId || !lastSeenAt) return;
+            set((state) => ({
+                lastSeenByUser: {
+                    ...state.lastSeenByUser,
+                    [String(userId)]: lastSeenAt,
+                },
+            }));
+        });
+
         set({ socket });
+    },
+
+    seedLastSeenFromUsers: (users) => {
+        set((state) => ({
+            lastSeenByUser: seedLastSeenFromUsers(users, state.lastSeenByUser),
+        }));
     },
 
     disconnectSocket: () => {
         const socket = get().socket;
         socket?.removeAllListeners();
         if (socket?.connected) socket.disconnect();
-        set({ socket: null, onlineUsers: new Set() });
+        set({ socket: null, onlineUsers: new Set(), lastSeenByUser: {} });
     },
 }));
